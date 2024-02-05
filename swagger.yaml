@@ -22,6 +22,7 @@ tags:
 servers:
   - url: 'http://localhost:1337'
   - url: 'https://bus-transport-api.onrender.com'
+  - url: 'https://bus-transport-api-mongo-db.onrender.com'
 paths:
   /api/v1/auth/signup:
     post:
