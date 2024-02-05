@@ -1,68 +1,23 @@
-import { Pool } from 'pg';
-import { logger } from '../helpers/utils';
-import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
-dotenv.config();
+interface UserDocument extends mongoose.Document {
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  is_admin: boolean;
+  created_date: Date;
+  modified_date: Date;
+}
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  first_name: { type: String, required: true },
+  last_name: { type: String, required: true },
+  password: { type: String, required: true },
+  is_admin: { type: Boolean, default: false },
+  created_date: { type: Date, default: Date.now },
+  modified_date: { type: Date, default: Date.now },
 });
 
-pool.on('connect', () => {
-  logger().info('connected to the db');
-});
-
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
-
-/**
- * Create Tables
- * @returns {void}
- */
-export const createUserTable = async (): Promise<void> => {
-  const client = await pool.connect();
-  console.log("client:", client);
-  const queryText = `
-    CREATE TABLE IF NOT EXISTS
-      Users(
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(128) UNIQUE NOT NULL,
-        first_name VARCHAR(128) NOT NULL,
-        password VARCHAR NOT NULL,
-        last_name VARCHAR(128) NOT NULL,
-        is_admin BOOLEAN DEFAULT false,
-        created_date TIMESTAMP,
-        modified_date TIMESTAMP
-      )`;
-  try {
-    logger().info('Creating Users table');
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-/**
- * Drop Tables
- * @returns {void}
- */
-export const dropUserTable = async (): Promise<void> => {
-  const client = await pool.connect();
-  const queryText = 'DROP TABLE IF EXISTS Users';
-  try {
-    logger().info('Dropping Users table');
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-pool.on('remove', () => {
-  logger().info('client removed');
-  process.exit(0);
-});
+export const UserModel = mongoose.model<UserDocument>('User', UserSchema);

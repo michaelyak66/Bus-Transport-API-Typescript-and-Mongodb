@@ -145,7 +145,7 @@ const createTripInput = (req: Request, res: Response, next: NextFunction): Respo
 const createBookingInput = (req: Request, res: Response, next: NextFunction): Response | NextFunction => {
   const { trip_id }: ValidationObject = req.body;
   const schema = Joi.object().keys({
-    trip_id: Joi.number().required(),
+    trip_id: Joi.string().required(),
   });
 
   const result = schema.validate({ trip_id: req.body.trip_id });

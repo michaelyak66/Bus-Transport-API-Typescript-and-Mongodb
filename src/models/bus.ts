@@ -1,65 +1,15 @@
-import { Pool, PoolClient } from 'pg';
-import { logger } from '../helpers/utils';
-import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
-dotenv.config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+// Define the Bus schema
+const busSchema = new mongoose.Schema({
+  number_plate: { type: String, unique: true, required: true },
+  manufacturer: { type: String, required: true },
+  model: { type: String, required: true },
+  year: { type: String, required: true },
+  capacity: { type: Number },
+  created_date: { type: Date, default: Date.now },
+  modified_date: { type: Date, default: Date.now }
 });
 
-pool.on('connect', () => {
-  logger().info('connected to the db');
-});
-
-/**
- * Create Tables
- * @returns {Promise<void>} void
- */
-export const createBusTable = async (): Promise<void> => {
-  const client: PoolClient = await pool.connect();
-  const queryText: string = `
-    CREATE TABLE IF NOT EXISTS
-      Buses(
-        id SERIAL PRIMARY KEY,
-        number_plate VARCHAR(128) UNIQUE NOT NULL,
-        manufacturer VARCHAR NOT NULL,
-        model VARCHAR NOT NULL,
-        year VARCHAR(128) NOT NULL,
-        capacity INTEGER,
-        created_date TIMESTAMP,
-        modified_date TIMESTAMP
-      )`;
-  try {
-    logger().info('Creating Buses table');
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-/**
- * Drop Tables
- * @returns {Promise<void>} void
- */
-export const dropBusTable = async (): Promise<void> => {
-  logger().info('Dropping Buses table');
-  const client: PoolClient = await pool.connect();
-  const queryText: string = 'DROP TABLE IF EXISTS Buses';
-  try {
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-pool.on('remove', () => {
-  logger().info('client removed');
-  process.exit(0);
-});
+// Create the Bus model
+export const Bus = mongoose.model('Bus', busSchema);

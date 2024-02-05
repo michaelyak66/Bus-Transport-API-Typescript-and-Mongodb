@@ -1,5 +1,4 @@
 import moment from 'moment';
-import db from './db';
 import {
   createToken,
   hashPassword,
@@ -9,7 +8,7 @@ import {
   isPassword
 } from '../helpers/utils';
 import { Request, Response } from 'express';
-
+import { UserModel } from '../models/user';
 interface UserRequestBody {
   email: string;
   first_name: string;
@@ -24,26 +23,30 @@ const Auth = {
       email, first_name, last_name, password, userType
     }: UserRequestBody = req.body;
     try {
-      const hash = await hashPassword(password);
+      const hashedPassword = await hashPassword(password);
 
-      const createQuery = `INSERT INTO
-      Users(email, first_name, last_name, password, is_admin, created_date, modified_date)
-      VALUES($1, $2, $3, $4, $5, $6, $7)
-      returning *`;
-      const values = [
-        email.trim().toLowerCase(), first_name.trim().toLowerCase(),
-        last_name.trim().toLowerCase(), hash,
-        userType === 'admin', moment(new Date()), moment(new Date())
-      ];
-      const { rows } = await db.query(createQuery, values);
-      const token = createToken(rows[0].id, rows[0].is_admin);
+      // Create a new user document using the UserModel
+      const newUser = new UserModel({
+        email: email.trim().toLowerCase(),
+        first_name: first_name.trim().toLowerCase(),
+        last_name: last_name.trim().toLowerCase(),
+        password: hashedPassword,
+        is_admin: userType === 'admin',
+        created_date: moment().toDate(),
+        modified_date: moment().toDate()
+      });
+
+      // Save the new user document to the database
+      const savedUser = await newUser.save();
+      const token = createToken(savedUser.id, savedUser.is_admin);
+
       return handleServerResponse(res, 201, {
-        user_id: rows[0].id,
-        is_admin: rows[0].is_admin,
+        user_id: savedUser.id,
+        is_admin: savedUser.is_admin,
         token
       });
     } catch (error) {
-      if (error.routine === '_bt_check_unique') {
+      if (error.code === 11000) { // MongoDB duplicate key error code
         return handleServerResponseError(res, 409, `User with Email:- ${email.trim().toLowerCase()} already exists`);
       }
       handleServerError(res, error);
@@ -51,19 +54,26 @@ const Auth = {
   },
 
   async login(req: Request, res: Response): Promise<Response | void> {
-    const userQuery = 'SELECT * FROM Users WHERE email = $1';
     const { email, password } = req.body;
     try {
-      const { rows } = await db.query(userQuery, [email.trim().toLowerCase()]);
-      if (!rows[0]) {
+      // Find the user document by email
+      const user = await UserModel.findOne({ email: email.trim().toLowerCase() });
+
+      if (!user) {
         return handleServerResponseError(res, 404, 'Account with Email not found');
       }
-      if (!isPassword(password, rows[0].password)) {
+
+      if (!isPassword(password, user.password)) {
         return handleServerResponseError(res, 403, 'Password incorrect');
       }
-      const token = createToken(rows[0].id, rows[0].is_admin);
+
+      // Create token for the user
+      const token = createToken(user.id, user.is_admin);
+
       return handleServerResponse(res, 200, {
-        user_id: rows[0].id, is_admin: rows[0].is_admin, token
+        user_id: user.id,
+        is_admin: user.is_admin,
+        token
       });
     } catch (error) {
       return handleServerError(res, error);

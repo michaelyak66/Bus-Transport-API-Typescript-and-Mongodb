@@ -11,6 +11,8 @@ import auth from './routes/auth';
 import bus from './routes/bus';
 import trip from './routes/trip';
 import booking from './routes/booking';
+import {connectToDatabase} from './controllers/db';
+
 
 const swaggerDocument = YAML.load('./swagger.yaml');
 dotenv.config();
@@ -43,9 +45,19 @@ app.use('/api/v1/bookings', booking);
 // Swagger Documentation
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Start the server
-app.listen(port, () => {
-  logger().info(`App running on port ${port}`);
-});
+const startServer = async () => {
+    try {
+      const db = await connectToDatabase();
+      app.listen(port, ()=> {
+        console.log(`Node API app is running on port ${port}`)
+        logger().info(`App running on port ${port}`);
 
+    });} 
+    catch (error) {
+      console.error('Error starting the server:', error);
+    }
+  };
+  
+  startServer();
+  
 export default app;

@@ -1,75 +1,17 @@
-import { Pool } from 'pg';
-import { logger } from '../helpers/utils';
-import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
-dotenv.config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+// Define the Trip schema
+const tripSchema = new mongoose.Schema({
+  bus_id: { type: Number, required: true },
+  origin: { type: String, required: true },
+  destination: { type: String, required: true },
+  trip_date: { type: Date },
+  status: { type: String, enum: ['active', 'cancelled'], default: 'active' },
+  fare: { type: Number, required: true },
+  seats: { type: [{ seat_number: Number, is_open: Boolean }], required: true },
+  created_date: { type: Date, default: Date.now },
+  modified_date: { type: Date, default: Date.now }
 });
 
-pool.on('connect', () => {
-  logger().info('connected to the db');
-});
-
-/**
- * Create Tables
- * @returns {void}
- */
-export const createTripTable = async (): Promise<void> => {
-  const client = await pool.connect();
-  try {
-    const enumText = `
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status') THEN
-        CREATE TYPE status AS ENUM ('active', 'cancelled');
-      END IF;
-    END$$;`;
-    await client.query(enumText);
-    const queryText = `
-      CREATE TABLE IF NOT EXISTS
-        Trips(
-          id SERIAL PRIMARY KEY,
-          bus_id INTEGER NOT NULL,
-          origin VARCHAR NOT NULL,
-          destination VARCHAR NOT NULL,
-          trip_date TIMESTAMP,
-          status status DEFAULT 'active',
-          fare FLOAT NOT NULL,
-          seats JSONB [] NOT NULL,
-          created_date TIMESTAMP,
-          modified_date TIMESTAMP
-        )`;
-    logger().info('Creating Trips table');
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-/**
- * Drop Tables
- * @returns {void}
- */
-export const dropTripTable = async (): Promise<void> => {
-  const client = await pool.connect();
-  const queryText = 'DROP TABLE IF EXISTS Trips';
-  try {
-    logger().info('Dropping Trips table');
-    const response = await client.query(queryText);
-    logger().info(response);
-  } catch (error) {
-    logger().error(error);
-  } finally {
-    client.release();
-  }
-};
-
-pool.on('remove', () => {
-  logger().info('client removed');
-  process.exit(0);
-});
+// Create the Trip model
+export const Trips = mongoose.model('Trip', tripSchema);

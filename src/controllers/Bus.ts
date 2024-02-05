@@ -1,31 +1,35 @@
 import moment from 'moment';
-import db from './db';
 import {
   handleServerError,
   handleServerResponse,
   handleServerResponseError,
 } from '../helpers/utils';
 import { Request, Response } from 'express';
+import { Bus } from '../models/bus';
 
-const Bus = {
+const BusController = {
   async create(req: Request, res: Response): Promise<Response | void> {
     const {
       model, numberPlate, manufacturer, year, capacity
     } = req.body;
     try {
-      const createQuery = `INSERT INTO
-      Buses(model, number_plate, manufacturer, year, capacity, created_date, modified_date)
-      VALUES($1, $2, $3, $4, $5, $6, $7)
-      returning *`;
-      const values = [
-        model.trim().toLowerCase(), numberPlate.trim().toLowerCase(),
-        manufacturer.trim().toLowerCase(), year,
-        capacity, moment(new Date()), moment(new Date())
-      ];
-      const { rows } = await db.query(createQuery, values);
-      return handleServerResponse(res, 201, { bus: rows[0] });
+      // Create a new bus document using the BusModel
+      const newBus = new Bus({
+        model: model.trim().toLowerCase(),
+        number_plate: numberPlate.trim().toLowerCase(),
+        manufacturer: manufacturer.trim().toLowerCase(),
+        year,
+        capacity,
+        created_date: moment().toDate(),
+        modified_date: moment().toDate()
+      });
+
+      // Save the new bus document to the database
+      const savedBus = await newBus.save();
+
+      return handleServerResponse(res, 201, { bus: savedBus });
     } catch (error) {
-      if (error.routine === '_bt_check_unique') {
+      if (error.code === 11000) { // MongoDB duplicate key error code
         return handleServerResponseError(res, 409, `Bus with number plate:- ${numberPlate.trim().toLowerCase()} already exists`);
       }
       handleServerError(res, error);
@@ -33,4 +37,4 @@ const Bus = {
   },
 };
 
-export default Bus;
+export default BusController;
